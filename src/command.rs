@@ -1,4 +1,6 @@
+use anyhow::Error;
 use clap::Parser;
+use reqwest::blocking::Client;
 use url::Url;
 
 /// Simple program to greet a person
@@ -11,10 +13,15 @@ pub struct Args {
 
     /// Number of times to greet
     #[arg(short, long, default_value_t = 1)]
-    count: u8,
+    depth: u8,
 }
 
-pub fn a() {
+pub fn exec() -> Result<(), Error> {
     let arg = Args::parse();
-    println!("{:?}", arg);
+    let client = Client::new();
+    let res = client.get(arg.url).send().unwrap();
+    let body = res.text().unwrap();
+    println!("{:?}", body);
+
+    Ok(())
 }

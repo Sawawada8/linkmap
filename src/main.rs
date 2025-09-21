@@ -1,6 +1,8 @@
 mod command;
 
-fn main() {
-    command::a();
+fn main() -> Result<(), anyhow::Error> {
+    command::exec().unwrap();
     println!("Hello, world!");
+
+    Ok(())
 }
