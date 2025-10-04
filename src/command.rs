@@ -18,7 +18,15 @@ pub struct Args {
 pub fn exec() -> Result<(), Error> {
     let arg = Args::parse();
 
-    searcher::search(&arg.url, arg.depth as usize);
+    let mut urls = searcher::search(&arg.url, arg.depth as usize);
+    urls.sort();
+    println!("----------------------------------");
+    println!("result: {} urls", urls.len());
+    println!("|----------------------------------|");
+    for url in &urls {
+        println!("| {}", url.as_str());
+    }
+    println!("|----------------------------------|");
 
     Ok(())
 }
@@ -31,7 +39,7 @@ mod searcher {
 
     pub fn search(url: &Url, count: usize) -> Vec<Url> {
         let client = Client::new();
-        let mut c = 1;
+        let mut c = 0;
         let mut visited = HashSet::new();
         let mut q = VecDeque::new();
         q.push_back(url.clone());
@@ -39,7 +47,6 @@ mod searcher {
             if let Some(url) = q.pop_front() {
                 println!("----------------------------------");
                 println!("start!, c: {}, url: {}", c, url);
-                println!("----------------------------------");
                 let res = client.get(url.clone()).send().unwrap();
                 let status = res.status();
                 match res.status() {
@@ -75,23 +82,30 @@ mod searcher {
             .select(&scraper::Selector::parse("a").unwrap())
             .collect::<Vec<_>>();
         println!("Found {} links", ankers.len());
-        println!("list: {:?}", ankers);
+        // println!("list: {:?}", ankers);
 
-        let urls = ankers
+        ankers
             .iter()
             .filter_map(|a| a.value().attr("href"))
             .map(|s| {
                 Url::parse(s).unwrap_or_else(|err| {
-                    println!("Failed to parse URL: {}, err: {}", s, err);
-                    // visited なのでスキップされる
-                    Url::parse(base.as_str()).unwrap()
+                    // println!("Failed to parse URL: {}, err: {}", s, err);
+                    let new_base = generate_url_from_path(base, s);
+                    // println!("new base URL: {}", new_base);
+                    new_base
                 })
             })
-            .collect::<Vec<_>>();
+            .collect::<Vec<_>>()
+    }
 
-        for url in &urls {
-            println!("- {}", url.as_str());
-        }
-        urls
+    fn generate_url_from_path(base: &Url, path: &str) -> Url {
+        let scheme = base.scheme();
+        let host = base.host_str().unwrap_or("");
+        let new_base = format!("{}://{}{}", scheme, host, path);
+        Url::parse(new_base.as_str()).unwrap_or_else(|err| {
+            // println!("Failed to parse new URL: {}, err: {}", new_base, err);
+            // 元のURLを返す、visited なのでスキップされる
+            Url::parse(base.as_str()).unwrap()
+        })
     }
 }
