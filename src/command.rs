@@ -2,6 +2,8 @@ use anyhow::Error;
 use clap::Parser;
 use url::Url;
 
+use crate::scored_url::ScoredUrl;
+
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -17,14 +19,16 @@ pub struct Args {
 
 pub fn exec() -> Result<(), Error> {
     let arg = Args::parse();
+    let original_url = arg.url.clone();
 
-    let mut urls = searcher::search(&arg.url, arg.depth as usize);
+    let mut urls = searcher::search(&original_url, arg.depth as usize);
     urls.sort();
     println!("----------------------------------");
     println!("result: {} urls", urls.len());
     println!("|----------------------------------|");
     for url in &urls {
-        println!("| {}", url.as_str());
+        let s_url = ScoredUrl::new(original_url.clone(), url.clone()).calc_score();
+        println!("| score={}, {}", s_url.get_score(), url.as_str());
     }
     println!("|----------------------------------|");
 
