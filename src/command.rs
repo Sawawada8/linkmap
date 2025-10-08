@@ -21,14 +21,19 @@ pub fn exec() -> Result<(), Error> {
     let arg = Args::parse();
     let original_url = arg.url.clone();
 
-    let mut urls = searcher::search(&original_url, arg.depth as usize);
-    urls.sort();
+    let mut urls = searcher::search(&original_url, arg.depth as usize)
+        .into_iter()
+        .map(|url| {
+            let scored_url = ScoredUrl::new(original_url.clone(), url).calc_score();
+            scored_url
+        })
+        .collect::<Vec<_>>();
+    urls.sort_by(|a, b| b.get_score().cmp(&a.get_score()));
     println!("----------------------------------");
     println!("result: {} urls", urls.len());
     println!("|----------------------------------|");
-    for url in &urls {
-        let s_url = ScoredUrl::new(original_url.clone(), url.clone()).calc_score();
-        println!("| score={}, {}", s_url.get_score(), url.as_str());
+    for s_url in &urls {
+        println!("| score={}, {}", s_url.get_score(), s_url.url.as_str());
     }
     println!("|----------------------------------|");
 
