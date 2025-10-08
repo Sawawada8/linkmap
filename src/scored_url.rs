@@ -59,7 +59,11 @@ impl ScoredUrl {
             .path_segments()
             .unwrap()
             .collect::<Vec<_>>();
-        let url_pathes = self.url.path_segments().unwrap().collect::<Vec<_>>();
+        let url_pathes = self.url.path_segments();
+        if url_pathes.is_none() {
+            return 0;
+        }
+        let url_pathes = url_pathes.unwrap().collect::<Vec<_>>();
         let loop_count = url_pathes.len().min(original_pathes.len());
         let mut c = 0;
         for i in 0..loop_count {
