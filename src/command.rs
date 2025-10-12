@@ -29,7 +29,7 @@ pub fn exec() -> Result<(), Error> {
         .search(arg.depth as usize)
         .into_iter()
         .map(|url| {
-            let scored_url = ScoredUrl::new(original_url.clone(), url).calc_score();
+            let scored_url = url.calc_score();
             scored_url
         })
         .collect::<Vec<_>>();
@@ -47,7 +47,7 @@ pub fn exec() -> Result<(), Error> {
 
 struct Searcher {
     base_url: Url,
-    visited: HashSet<Url>,
+    visited: HashSet<ScoredUrl>,
 }
 
 impl Searcher {
@@ -58,7 +58,7 @@ impl Searcher {
         }
     }
 
-    pub fn search(&mut self, count: usize) -> Vec<Url> {
+    pub fn search(&mut self, count: usize) -> Vec<ScoredUrl> {
         let client = Client::new();
         let mut c = 0;
         let mut q = VecDeque::new();
@@ -81,10 +81,11 @@ impl Searcher {
                 let body = res.text().unwrap();
                 let ankers = self.extraction_anker(&body);
                 ankers.iter().for_each(|url| {
-                    if self.visited.contains(url) {
+                    let scored_url = ScoredUrl::new(self.base_url.clone(), url.clone());
+                    if self.visited.contains(&scored_url) {
                         return;
                     } else {
-                        self.visited.insert(url.clone());
+                        self.visited.insert(scored_url.clone());
                         q.push_back(url.clone());
                     }
                 });
