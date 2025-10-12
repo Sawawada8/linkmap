@@ -47,17 +47,20 @@ pub fn exec() -> Result<(), Error> {
 
 struct Searcher {
     base_url: Url,
+    visited: HashSet<Url>,
 }
 
 impl Searcher {
     pub fn new(base_url: Url) -> Self {
-        Self { base_url }
+        Self {
+            base_url,
+            visited: HashSet::new(),
+        }
     }
 
-    pub fn search(&self, count: usize) -> Vec<Url> {
+    pub fn search(&mut self, count: usize) -> Vec<Url> {
         let client = Client::new();
         let mut c = 0;
-        let mut visited = HashSet::new();
         let mut q = VecDeque::new();
         q.push_back(self.base_url.clone());
         while q.len() > 0 && c < count {
@@ -76,12 +79,12 @@ impl Searcher {
                     }
                 }
                 let body = res.text().unwrap();
-                let ankers = self.extraction_anker(&body, &url);
+                let ankers = self.extraction_anker(&body);
                 ankers.iter().for_each(|url| {
-                    if visited.contains(url) {
+                    if self.visited.contains(url) {
                         return;
                     } else {
-                        visited.insert(url.clone());
+                        self.visited.insert(url.clone());
                         q.push_back(url.clone());
                     }
                 });
@@ -90,10 +93,10 @@ impl Searcher {
                 panic!("invalid q");
             }
         }
-        visited.into_iter().collect::<Vec<_>>()
+        self.visited.clone().into_iter().collect::<Vec<_>>()
     }
 
-    pub fn extraction_anker(&self, html: &str, base: &Url) -> Vec<Url> {
+    fn extraction_anker(&self, html: &str) -> Vec<Url> {
         let doc = scraper::Html::parse_document(html);
         let ankers = doc
             .select(&scraper::Selector::parse("a").unwrap())
