@@ -2,8 +2,10 @@ use url::Url;
 
 pub enum Position {
     Header,
-    Body,
+    Main,
     Footer,
+    Nav,
+    Other,
 }
 
 pub struct ScoredUrl {
@@ -19,6 +21,7 @@ impl ScoredUrl {
             original_url,
             url,
             score: None,
+            // position,
         }
     }
 
