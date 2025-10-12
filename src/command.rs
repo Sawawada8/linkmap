@@ -1,6 +1,10 @@
+use std::collections::{HashSet, VecDeque};
+
+use reqwest::blocking::Client;
+use url::Url;
+
 use anyhow::Error;
 use clap::Parser;
-use url::Url;
 
 use crate::scored_url::ScoredUrl;
 
@@ -21,7 +25,8 @@ pub fn exec() -> Result<(), Error> {
     let arg = Args::parse();
     let original_url = arg.url.clone();
 
-    let mut urls = searcher::search(&original_url, arg.depth as usize)
+    let mut urls = Searcher::new(original_url.clone())
+        .search(arg.depth as usize)
         .into_iter()
         .map(|url| {
             let scored_url = ScoredUrl::new(original_url.clone(), url).calc_score();
@@ -40,18 +45,21 @@ pub fn exec() -> Result<(), Error> {
     Ok(())
 }
 
-mod searcher {
-    use std::collections::{HashSet, VecDeque};
+struct Searcher {
+    base_url: Url,
+}
 
-    use reqwest::blocking::Client;
-    use url::Url;
+impl Searcher {
+    pub fn new(base_url: Url) -> Self {
+        Self { base_url }
+    }
 
-    pub fn search(url: &Url, count: usize) -> Vec<Url> {
+    pub fn search(&self, count: usize) -> Vec<Url> {
         let client = Client::new();
         let mut c = 0;
         let mut visited = HashSet::new();
         let mut q = VecDeque::new();
-        q.push_back(url.clone());
+        q.push_back(self.base_url.clone());
         while q.len() > 0 && c < count {
             if let Some(url) = q.pop_front() {
                 println!("----------------------------------");
@@ -68,7 +76,7 @@ mod searcher {
                     }
                 }
                 let body = res.text().unwrap();
-                let ankers = extraction_anker(&body, &url);
+                let ankers = self.extraction_anker(&body, &url);
                 ankers.iter().for_each(|url| {
                     if visited.contains(url) {
                         return;
@@ -85,7 +93,7 @@ mod searcher {
         visited.into_iter().collect::<Vec<_>>()
     }
 
-    pub fn extraction_anker(html: &str, base: &Url) -> Vec<Url> {
+    pub fn extraction_anker(&self, html: &str, base: &Url) -> Vec<Url> {
         let doc = scraper::Html::parse_document(html);
         let ankers = doc
             .select(&scraper::Selector::parse("a").unwrap())
@@ -99,7 +107,7 @@ mod searcher {
             .map(|s| {
                 Url::parse(s).unwrap_or_else(|err| {
                     // println!("Failed to parse URL: {}, err: {}", s, err);
-                    let new_base = generate_url_from_path(base, s);
+                    let new_base = self.generate_url_from_path(s);
                     // println!("new base URL: {}", new_base);
                     new_base
                 })
@@ -107,14 +115,14 @@ mod searcher {
             .collect::<Vec<_>>()
     }
 
-    fn generate_url_from_path(base: &Url, path: &str) -> Url {
-        let scheme = base.scheme();
-        let host = base.host_str().unwrap_or("");
+    fn generate_url_from_path(&self, path: &str) -> Url {
+        let scheme = self.base_url.scheme();
+        let host = self.base_url.host_str().unwrap_or("");
         let new_base = format!("{}://{}{}", scheme, host, path);
         Url::parse(new_base.as_str()).unwrap_or_else(|err| {
             // println!("Failed to parse new URL: {}, err: {}", new_base, err);
             // 元のURLを返す、visited なのでスキップされる
-            Url::parse(base.as_str()).unwrap()
+            Url::parse(self.base_url.as_str()).unwrap()
         })
     }
 }
