@@ -8,12 +8,21 @@ pub enum Position {
     Other,
 }
 
+#[derive(Hash, Debug, Clone)]
 pub struct ScoredUrl {
     pub original_url: Url,
     pub url: Url,
     pub score: Option<u32>,
     // pub position: Position,
 }
+
+impl PartialEq for ScoredUrl {
+    fn eq(&self, other: &Self) -> bool {
+        self.url == other.url
+    }
+}
+
+impl Eq for ScoredUrl {}
 
 impl ScoredUrl {
     pub fn new(original_url: Url, url: Url) -> Self {
@@ -85,6 +94,27 @@ impl ScoredUrl {
 mod tests {
     use super::*;
     use url::Url;
+
+    #[test]
+    fn eq_url() {
+        let url1 = Url::parse("https://example.com/page1").unwrap();
+        let url2 = Url::parse("https://example.com/page1").unwrap();
+        let url3 = Url::parse("https://example.com/page2").unwrap();
+
+        let scored1 = ScoredUrl::new(url1.clone(), url1.clone());
+        let scored2 = ScoredUrl::new(url1.clone(), url2);
+        let scored3 = ScoredUrl::new(url1, url3);
+
+        assert_eq!(scored1, scored2);
+        assert_ne!(scored1, scored3);
+
+        let mut set = std::collections::HashSet::new();
+        set.insert(scored1.clone());
+        set.insert(scored1);
+        assert_eq!(set.len(), 1);
+        set.insert(scored3);
+        assert_eq!(set.len(), 2);
+    }
 
     #[test]
     fn test_calc_score() {
